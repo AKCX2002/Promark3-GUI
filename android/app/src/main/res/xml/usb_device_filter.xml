@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Proxmark3 USB VID:PID (9ac4:4b8f) -->
+    <usb-device vendor-id="39620" product-id="19343" />
+    <!-- Also match CDC-ACM compatible devices (common PM3 connection) -->
+    <usb-device vendor-id="11914" product-id="5" />
+</resources>

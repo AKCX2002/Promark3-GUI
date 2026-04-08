@@ -1,0 +1,64 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Platform build outputs
+**/doc/api/
+android/.gradle/
+android/app/build/
+android/app/debug
+android/app/profile
+android/app/release
+android/local.properties
+android/key.properties
+android/*.keystore
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/.last_build_id
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Symbolication & obfuscation
+app.*.symbols
+app.*.map.json
+
+# Coverage
+coverage/
+*.lcov
+
+# Generated
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+lib/generated_plugin_registrant.dart
+
+# OS
+Thumbs.db
+desktop.ini
