@@ -63,3 +63,5 @@ lib/generated_plugin_registrant.dart
 Thumbs.db
 desktop.ini
 !/lib/
+
+*.dump
