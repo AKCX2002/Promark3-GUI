@@ -59,7 +59,7 @@ class CollectedFile {
   }
 
   /// Suggested subfolder: "hf-mf/A991A280/"
-  String get suggestedSubdir => '$band-$cardType/${uid.toUpperCase()}/';
+  String get suggestedSubdir => '${band.name}-$cardType/${uid.toUpperCase()}/';
 
   static String _cardTypeName(String ct) {
     switch (ct) {
@@ -126,14 +126,19 @@ final _legacyDumpPattern = RegExp(
 class FileCollector {
   /// Scan a list of directories for PM3-generated files.
   /// Returns all collected files, unsorted.
-  static Future<List<CollectedFile>> scan(List<String> directories) async {
+  /// [recursive] — set true to scan subdirectories (used for organised base dir).
+  static Future<List<CollectedFile>> scan(
+    List<String> directories, {
+    bool recursive = false,
+  }) async {
     final results = <CollectedFile>[];
 
     for (final dirPath in directories) {
       final dir = Directory(dirPath);
       if (!await dir.exists()) continue;
 
-      await for (final entity in dir.list(followLinks: false)) {
+      await for (final entity
+          in dir.list(recursive: recursive, followLinks: false)) {
         if (entity is! File) continue;
         final file = entity;
         final name = p.basename(file.path);

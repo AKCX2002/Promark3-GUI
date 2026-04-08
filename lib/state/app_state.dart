@@ -220,7 +220,21 @@ class AppState extends ChangeNotifier {
 
     try {
       final dirs = FileCollector.defaultScanDirs(pm3Path);
-      collectedFiles = await FileCollector.scan(dirs);
+      final files = await FileCollector.scan(dirs);
+
+      // 同时递归扫描归类目标目录（存放已整理文件），避免归类后文件"消失"
+      List<CollectedFile> organizedFiles = [];
+      if (collectBaseDir != null) {
+        organizedFiles = await FileCollector.scan(
+          [collectBaseDir!],
+          recursive: true,
+        );
+      }
+
+      // 合并，去除重复路径
+      final seen = <String>{};
+      collectedFiles =
+          [...files, ...organizedFiles].where((f) => seen.add(f.path)).toList();
       cardGroups = FileCollector.groupByCard(collectedFiles);
     } catch (e) {
       terminalOutput.add('[文件扫描错误] $e');
