@@ -7,7 +7,8 @@ void main(List<String> args) {
     csv = File('pm3gui/docs/pm3_commands.csv');
   }
   if (!csv.existsSync()) {
-    stderr.writeln('docs/pm3_commands.csv not found. Run generate_commands_csv.dart first.');
+    stderr.writeln(
+        'docs/pm3_commands.csv not found. Run generate_commands_csv.dart first.');
     exit(2);
   }
 

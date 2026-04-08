@@ -112,13 +112,17 @@ Map<String, List<MethodEntry>> _extractClassMethods(String source) {
     final list = <MethodEntry>[];
 
     // Arrow functions: static String x(...) => 'cmd ...';
-    final arrow = RegExp(r"static\s+String\s+(\w+)\s*\([^)]*\)\s*=>\s*'([^']*)';", multiLine: true);
+    final arrow = RegExp(
+        r"static\s+String\s+(\w+)\s*\([^)]*\)\s*=>\s*'([^']*)';",
+        multiLine: true);
     for (final m in arrow.allMatches(body)) {
       list.add(MethodEntry(m.group(1)!, m.group(2)!));
     }
 
     // Block functions: try to capture StringBuffer('...') first, otherwise return '...';
-    final block = RegExp(r'static\s+String\s+(\w+)\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}', multiLine: true);
+    final block = RegExp(
+        r'static\s+String\s+(\w+)\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}',
+        multiLine: true);
     for (final bm in block.allMatches(body)) {
       final methodName = bm.group(1)!;
       final methodBody = bm.group(2)!;
@@ -202,7 +206,8 @@ Future<HelpInfo> _queryHelp(String pm3Path, String cmdPath) async {
   if (clean.isEmpty) return null;
 
   final lines = const LineSplitter().convert(clean);
-  if (lines.any((l) => l.contains('command not found') || l.contains('Unknown command'))) {
+  if (lines.any((l) =>
+      l.contains('command not found') || l.contains('Unknown command'))) {
     return null;
   }
 
@@ -269,7 +274,12 @@ String _clean(String s) {
       .replaceAll(ansi, '')
       .replaceAll('\r', '')
       .split('\n')
-      .where((l) => !l.contains('Session log') && !l.contains('loaded `') && !l.contains('OFFLINE mode') && !l.contains('execute command from commandline:') && !l.contains('pm3 -->'))
+      .where((l) =>
+          !l.contains('Session log') &&
+          !l.contains('loaded `') &&
+          !l.contains('OFFLINE mode') &&
+          !l.contains('execute command from commandline:') &&
+          !l.contains('pm3 -->'))
       .join('\n')
       .trim();
 }
