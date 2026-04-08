@@ -9,27 +9,27 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
   # State management
   provider: ^6.1.2
   # File picking for dump files
-  file_picker: ^8.0.0
+  file_picker: ^11.0.2
   # Desktop-native open/save dialogs (Linux/Windows/macOS)
-  file_selector: ^1.0.3
+  file_selector: ^1.1.0
   # File path utilities
   path_provider: ^2.1.4
   path: ^1.9.0
   # Share files
-  share_plus: ^9.0.0
+  share_plus: ^12.0.2
   # Charts for signal visualization
-  fl_chart: ^0.69.0
+  fl_chart: ^1.2.0
   # Google fonts
-  google_fonts: ^6.2.1
+  google_fonts: ^8.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
