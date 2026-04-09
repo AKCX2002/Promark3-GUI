@@ -6,6 +6,19 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pm3gui/state/app_state.dart';
 import 'package:pm3gui/parsers/output_parser.dart';
+import 'package:pm3gui/services/pm3_command_catalog.dart';
+
+class _AutocompleteIntent extends Intent {
+  const _AutocompleteIntent();
+}
+
+class _AutocompletePrevIntent extends Intent {
+  const _AutocompletePrevIntent();
+}
+
+class _CancelAutocompleteIntent extends Intent {
+  const _CancelAutocompleteIntent();
+}
 
 class TerminalPage extends StatefulWidget {
   const TerminalPage({super.key});
@@ -19,12 +32,163 @@ class _TerminalPageState extends State<TerminalPage> {
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
 
+  List<Pm3CommandEntry> _catalog = const [];
+  List<Pm3CommandEntry> _suggestions = const [];
+
+  List<Pm3CommandEntry> _cycleCandidates = const [];
+  int _cycleIndex = -1;
+  bool _ignoreNextInputChange = false;
+
+  bool get _isCyclingAutocomplete => _cycleCandidates.isNotEmpty;
+
+  List<Pm3CommandEntry> get _displaySuggestions {
+    return _isCyclingAutocomplete ? _cycleCandidates : _suggestions;
+  }
+
+  String? get _selectedSuggestionCommand {
+    if (!_isCyclingAutocomplete || _cycleIndex < 0) return null;
+    if (_cycleIndex >= _cycleCandidates.length) return null;
+    return _cycleCandidates[_cycleIndex].command;
+  }
+
+  Pm3CommandEntry? get _activeEntry {
+    final input = _inputController.text;
+    if (input.trim().isEmpty) return null;
+
+    for (final e in _catalog) {
+      if (e.appliesToInput(input)) return e;
+    }
+
+    if (_displaySuggestions.isNotEmpty) return _displaySuggestions.first;
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _inputController.addListener(_onInputChanged);
+    _loadCatalog();
+  }
+
   @override
   void dispose() {
+    _inputController.removeListener(_onInputChanged);
     _inputController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onInputChanged() {
+    if (_ignoreNextInputChange) {
+      _ignoreNextInputChange = false;
+    } else {
+      _resetAutocompleteCycle();
+    }
+    _updateSuggestions();
+  }
+
+  void _resetAutocompleteCycle() {
+    if (!_isCyclingAutocomplete) return;
+    _cycleCandidates = const [];
+    _cycleIndex = -1;
+  }
+
+  void _cancelAutocompleteCycle() {
+    _resetAutocompleteCycle();
+    _updateSuggestions();
+    setState(() {});
+  }
+
+  Future<void> _loadCatalog() async {
+    final loaded = await Pm3CommandCatalog.load(preferZh: true);
+    if (!mounted) return;
+    setState(() {
+      _catalog = loaded;
+      _updateSuggestions();
+    });
+  }
+
+  void _updateSuggestions() {
+    final query = _inputController.text.trim();
+    if (query.isEmpty) {
+      if (_suggestions.isNotEmpty) {
+        setState(() => _suggestions = const []);
+      }
+      return;
+    }
+
+    final prefixMatches =
+        _catalog.where((e) => e.commandPrefixMatches(query)).toList();
+    final fuzzyMatches = _catalog.where((e) => e.matches(query)).toList();
+
+    final merged = <Pm3CommandEntry>[];
+    final seen = <String>{};
+
+    for (final e in [...prefixMatches, ...fuzzyMatches]) {
+      if (seen.add(e.command)) {
+        merged.add(e);
+      }
+      if (merged.length >= 6) break;
+    }
+
+    final matches = merged;
+    setState(() => _suggestions = matches);
+  }
+
+  void _cycleAutocomplete({required bool forward}) {
+    if (!_isCyclingAutocomplete) {
+      if (_suggestions.isEmpty) return;
+      _cycleCandidates = List<Pm3CommandEntry>.from(_suggestions);
+      _cycleIndex = forward ? 0 : _cycleCandidates.length - 1;
+    } else {
+      final len = _cycleCandidates.length;
+      if (len == 0) return;
+      final delta = forward ? 1 : -1;
+      _cycleIndex = ((_cycleIndex + delta) % len + len) % len;
+    }
+
+    final selected = _cycleCandidates[_cycleIndex].command;
+    setState(() {});
+    _setInputText(selected, preserveCycle: true);
+  }
+
+  void _setInputText(String value, {required bool preserveCycle}) {
+    if (preserveCycle) {
+      _ignoreNextInputChange = true;
+    }
+
+    _inputController.text = value;
+    _inputController.selection = TextSelection.fromPosition(
+      TextPosition(offset: value.length),
+    );
+    _focusNode.requestFocus();
+  }
+
+  void _insertParamToken(String paramLine) {
+    final token = _extractParamToken(paramLine);
+    if (token.isEmpty) return;
+
+    final old = _inputController.text;
+    final needsSpace = old.isNotEmpty && !old.endsWith(' ');
+    final next = '$old${needsSpace ? ' ' : ''}$token ';
+
+    _setInputText(next, preserveCycle: false);
+  }
+
+  String _extractParamToken(String paramLine) {
+    final text = paramLine.trim();
+    if (text.isEmpty) return '';
+
+    final parts = text.split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '';
+
+    for (final p in parts) {
+      if (p.startsWith('--')) return p;
+      if (p.startsWith('-')) return p;
+    }
+
+    return parts.first;
   }
 
   void _submitCommand() {
@@ -32,6 +196,8 @@ class _TerminalPageState extends State<TerminalPage> {
     if (cmd.isEmpty) return;
     context.read<AppState>().sendCommand(cmd);
     _inputController.clear();
+    _resetAutocompleteCycle();
+    setState(() => _suggestions = const []);
     _focusNode.requestFocus();
 
     // Scroll to bottom after a short delay for output to arrive
@@ -105,6 +271,34 @@ class _TerminalPageState extends State<TerminalPage> {
           ),
         ),
 
+        if (_displaySuggestions.isNotEmpty)
+          Container(
+            width: double.infinity,
+            color: const Color(0xFF17172A),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _displaySuggestions.map(
+                (item) {
+                  final selected = item.command == _selectedSuggestionCommand;
+                  return ActionChip(
+                    label: Text(
+                      item.command,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    tooltip: item.label,
+                    backgroundColor: selected ? Colors.blueGrey.shade700 : null,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      _setInputText(item.command, preserveCycle: false);
+                    },
+                  );
+                },
+              ).toList(),
+            ),
+          ),
+
         // Input bar
         Container(
           color: const Color(0xFF1A1A2E),
@@ -116,40 +310,89 @@ class _TerminalPageState extends State<TerminalPage> {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 14,
-                  color: appState.isConnected
-                      ? Colors.greenAccent
-                      : Colors.grey,
+                  color:
+                      appState.isConnected ? Colors.greenAccent : Colors.grey,
                 ),
               ),
               Expanded(
-                child: KeyboardListener(
-                  focusNode: FocusNode(),
-                  onKeyEvent: (event) {
-                    if (event is KeyDownEvent) {
-                      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                        _navigateHistory(-1);
-                      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                        _navigateHistory(1);
-                      }
-                    }
+                child: Shortcuts(
+                  shortcuts: {
+                    const SingleActivator(LogicalKeyboardKey.tab):
+                        const _AutocompleteIntent(),
+                    const SingleActivator(
+                      LogicalKeyboardKey.tab,
+                      shift: true,
+                    ): const _AutocompletePrevIntent(),
+                    const SingleActivator(LogicalKeyboardKey.escape):
+                        const _CancelAutocompleteIntent(),
                   },
-                  child: TextField(
-                    controller: _inputController,
-                    focusNode: _focusNode,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 14,
+                  child: Actions(
+                    actions: {
+                      _AutocompleteIntent: CallbackAction<_AutocompleteIntent>(
+                        onInvoke: (_) {
+                          _cycleAutocomplete(forward: true);
+                          return null;
+                        },
+                      ),
+                      _AutocompletePrevIntent:
+                          CallbackAction<_AutocompletePrevIntent>(
+                        onInvoke: (_) {
+                          _cycleAutocomplete(forward: false);
+                          return null;
+                        },
+                      ),
+                      _CancelAutocompleteIntent:
+                          CallbackAction<_CancelAutocompleteIntent>(
+                        onInvoke: (_) {
+                          _cancelAutocompleteCycle();
+                          return null;
+                        },
+                      ),
+                    },
+                    child: KeyboardListener(
+                      focusNode: FocusNode(),
+                      onKeyEvent: (event) {
+                        if (event is KeyDownEvent) {
+                          if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                            if (_displaySuggestions.isNotEmpty) {
+                              _cycleAutocomplete(forward: false);
+                            } else {
+                              _navigateHistory(-1);
+                            }
+                          } else if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowDown) {
+                            if (_displaySuggestions.isNotEmpty) {
+                              _cycleAutocomplete(forward: true);
+                            } else {
+                              _navigateHistory(1);
+                            }
+                          }
+                        }
+                      },
+                      child: TextField(
+                        controller: _inputController,
+                        focusNode: _focusNode,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: '输入命令...（Tab/Shift+Tab 循环，Esc 退出）',
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onSubmitted: (_) => _submitCommand(),
+                        textInputAction: TextInputAction.send,
+                      ),
                     ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: '输入命令...',
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onSubmitted: (_) => _submitCommand(),
-                    textInputAction: TextInputAction.send,
                   ),
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.menu_book, size: 20),
+                onPressed: _showQuickInputPanel,
+                tooltip: '命令库',
               ),
               IconButton(
                 icon: const Icon(Icons.send, size: 20),
@@ -166,8 +409,116 @@ class _TerminalPageState extends State<TerminalPage> {
             ],
           ),
         ),
+
+        if (_activeEntry != null && _activeEntry!.params.isNotEmpty)
+          Container(
+            width: double.infinity,
+            color: const Color(0xFF141426),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _activeEntry!.params
+                  .take(8)
+                  .map(
+                    (p) => InputChip(
+                      label: Text(
+                        p,
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _insertParamToken(p),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
       ],
     );
+  }
+
+  Future<void> _showQuickInputPanel() async {
+    if (_catalog.isEmpty) return;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        final searchCtrl = TextEditingController();
+        var filtered = _catalog;
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void updateFilter(String q) {
+              final query = q.trim().toLowerCase();
+              setSheetState(() {
+                if (query.isEmpty) {
+                  filtered = _catalog;
+                } else {
+                  filtered = _catalog
+                      .where((e) =>
+                          e.command.toLowerCase().contains(query) ||
+                          e.name.toLowerCase().contains(query) ||
+                          e.className.toLowerCase().contains(query))
+                      .toList();
+                }
+              });
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 12,
+                  right: 12,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: searchCtrl,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search),
+                        hintText: '搜索命令（如 hf mf, autopwn, info）',
+                      ),
+                      onChanged: updateFilter,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 380,
+                      child: ListView.builder(
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final item = filtered[index];
+                          return ListTile(
+                            dense: true,
+                            title: Text(item.command),
+                            subtitle: Text(
+                              '${item.className} · ${item.name}${item.params.isNotEmpty ? ' · ${item.params.first}' : ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () => Navigator.pop(context, item.command),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (selected != null && selected.isNotEmpty) {
+      _setInputText(selected, preserveCycle: false);
+    }
   }
 
   Widget _quickBtn(String label, String cmd) {
@@ -186,7 +537,9 @@ class _TerminalPageState extends State<TerminalPage> {
 
   Color _lineColor(String line) {
     if (line.startsWith('[pm3]')) return Colors.cyanAccent;
-    if (line.startsWith('[ERR]') || line.contains('[-]')) return Colors.redAccent;
+    if (line.startsWith('[ERR]') || line.contains('[-]')) {
+      return Colors.redAccent;
+    }
     if (line.contains('[+]')) return Colors.greenAccent;
     if (line.contains('[=]')) return Colors.white70;
     if (line.contains('[#]')) return Colors.yellow;
@@ -202,13 +555,10 @@ class _TerminalPageState extends State<TerminalPage> {
     if (appState.historyIndex < 0) appState.historyIndex = 0;
     if (appState.historyIndex >= history.length) {
       appState.historyIndex = history.length;
-      _inputController.clear();
+      _setInputText('', preserveCycle: false);
       return;
     }
 
-    _inputController.text = history[appState.historyIndex];
-    _inputController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _inputController.text.length),
-    );
+    _setInputText(history[appState.historyIndex], preserveCycle: false);
   }
 }
