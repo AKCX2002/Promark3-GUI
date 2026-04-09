@@ -532,8 +532,12 @@ class DumpAnalyzer {
 
     // 简单CRC验证
     int calcCrc = 0;
-    for (int i = 1; i < 16; i++) calcCrc ^= b1Bytes[i];
-    for (int i = 0; i < 16; i++) calcCrc ^= b2Bytes[i];
+    for (int i = 1; i < 16; i++) {
+      calcCrc ^= b1Bytes[i];
+    }
+    for (int i = 0; i < 16; i++) {
+      calcCrc ^= b2Bytes[i];
+    }
 
     return MadInfo(
       version: version + 1,

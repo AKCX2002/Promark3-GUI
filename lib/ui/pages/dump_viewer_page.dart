@@ -190,6 +190,7 @@ class _DumpViewerPageState extends State<DumpViewerPage>
         _selectedSector = 0;
         _initEditControllers();
       });
+      if (!mounted) return;
       context.read<AppState>().updateCard(_card!);
     }
   }
@@ -224,6 +225,7 @@ class _DumpViewerPageState extends State<DumpViewerPage>
       // else: choice == overwrite → use dump's own keys (already set)
 
       setState(() => _initEditControllers());
+      if (!mounted) return;
       context.read<AppState>()
         ..updateCard(_card!)
         ..setPreferredMfDumpFile(path);
@@ -238,6 +240,7 @@ class _DumpViewerPageState extends State<DumpViewerPage>
         _selectedSector = 0;
         _initEditControllers();
       });
+      if (!mounted) return;
       context.read<AppState>()
         ..updateCard(_card!)
         ..setPreferredMfDumpFile(path);
@@ -698,9 +701,10 @@ class _DumpViewerPageState extends State<DumpViewerPage>
   }
 
   Widget _buildTrailerRow(String data) {
-    if (data.length < 32)
+    if (data.length < 32) {
       return Text(_fmtHex(data),
           style: const TextStyle(fontFamily: 'monospace', fontSize: 13));
+    }
     final keyA = data.substring(0, 12);
     final access = data.substring(12, 20);
     final keyB = data.substring(20, 32);
