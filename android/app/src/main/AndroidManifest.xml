@@ -5,8 +5,7 @@
     <uses-permission android:name="android.permission.MANAGE_USB" />
     <application
         android:label="pm3gui"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:name="${applicationName}">
         <activity
             android:name=".MainActivity"
             android:exported="true"

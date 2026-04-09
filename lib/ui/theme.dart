@@ -52,7 +52,7 @@ class AppTheme {
         foregroundColor: Color(0xFFD4D0CC),
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: _darkCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -134,7 +134,7 @@ class AppTheme {
         ),
       ),
       dividerColor: _darkDivider,
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: _morandiBlue,
         unselectedLabelColor: const Color(0xFF8A8680),
         indicatorColor: _morandiBlue,
@@ -185,7 +185,7 @@ class AppTheme {
         foregroundColor: Color(0xFF4A4540),
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: _lightCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -247,7 +247,7 @@ class AppTheme {
         ),
       ),
       dividerColor: _lightDivider,
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: _morandiBlue,
         unselectedLabelColor: const Color(0xFF8A8480),
         indicatorColor: _morandiBlue,

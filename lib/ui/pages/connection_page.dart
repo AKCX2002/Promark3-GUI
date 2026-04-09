@@ -140,8 +140,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
                             ),
                           ]),
                         )
-                      : DropdownButtonFormField<String>(
-                          value: appState.availablePorts
+                        : DropdownButtonFormField<String>(
+                          initialValue: appState.availablePorts
                                   .contains(appState.portName)
                               ? appState.portName
                               : null,

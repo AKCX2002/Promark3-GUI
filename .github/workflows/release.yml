@@ -9,12 +9,11 @@ on:
   push:
     tags: ['v*']
 
-defaults:
-  run:
-    working-directory: pm3gui
-
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ================================================================
@@ -44,13 +43,13 @@ jobs:
       - name: Package
         run: |
           cd build/linux/x64/release/bundle
-          tar czf ../../../../../pm3gui-linux-x64.tar.gz .
+          tar czf "$GITHUB_WORKSPACE/pm3gui-linux-x64.tar.gz" .
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: release-linux
-          path: pm3gui/pm3gui-linux-x64.tar.gz
+          path: pm3gui-linux-x64.tar.gz
 
   # ================================================================
   #  Android
@@ -62,7 +61,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Flutter
@@ -82,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-android
-          path: pm3gui/build/app/outputs/flutter-apk/pm3gui-*.apk
+          path: build/app/outputs/flutter-apk/pm3gui-*.apk
 
   # ================================================================
   #  Windows
@@ -109,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: pm3gui/pm3gui-windows-x64.zip
+          path: pm3gui-windows-x64.zip
 
   # ================================================================
   #  Publish Release
