@@ -204,8 +204,9 @@ class _MifarePageState extends State<MifarePage>
                                   extensions: ['bin', 'dic', 'txt'])
                             ],
                           );
-                          if (path != null)
+                          if (path != null) {
                             setState(() => _quickKeyFile = path);
+                          }
                         },
                         icon: const Icon(Icons.vpn_key, size: 16),
                         label: const Text('选择密钥文件'),
@@ -220,8 +221,9 @@ class _MifarePageState extends State<MifarePage>
                                   extensions: ['bin', 'eml', 'json', 'dump'])
                             ],
                           );
-                          if (path != null)
+                          if (path != null) {
                             setState(() => _quickDumpFile = path);
+                          }
                         },
                         icon: const Icon(Icons.file_open, size: 16),
                         label: const Text('选择转储文件'),
