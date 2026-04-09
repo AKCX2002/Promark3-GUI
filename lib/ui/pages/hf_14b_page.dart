@@ -125,9 +125,9 @@ class _Hf14bPageState extends State<Hf14bPage>
   }
 
   Widget _buildReadWriteTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -137,25 +137,21 @@ class _Hf14bPageState extends State<Hf14bPage>
                     const Text('块操作',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Row(children: [
-                      SizedBox(
-                          width: 100,
-                          child: TextFormField(
-                            decoration: const InputDecoration(labelText: '块号'),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            onChanged: (v) =>
-                                _blockNumber = int.tryParse(v) ?? 0,
-                          )),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: '块号'),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) => _blockNumber = int.tryParse(v) ?? 0,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
                           onPressed: () =>
                               _execute(Hf14bCmd.rdbl(_blockNumber)),
                           icon: const Icon(Icons.visibility, size: 18),
                           label: const Text('读取块')),
-                    ]),
+                    ),
                     const SizedBox(height: 12),
                     HexInputField(
                         label: '写入数据 (hex)',
@@ -193,19 +189,35 @@ class _Hf14bPageState extends State<Hf14bPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildToolsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 280,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ActionCard(
             title: '模拟卡片',
             subtitle: '模拟 14443-B 标签',
             icon: Icons.play_arrow,
             onTap: () => _execute(Hf14bCmd.sim())),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 }

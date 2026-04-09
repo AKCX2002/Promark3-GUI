@@ -123,9 +123,9 @@ class _HfIclassPageState extends State<HfIclassPage>
   }
 
   Widget _buildReadWriteTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -141,26 +141,22 @@ class _HfIclassPageState extends State<HfIclassPage>
                         onChanged: (v) => _key = v,
                         prefixIcon: Icons.vpn_key),
                     const SizedBox(height: 8),
-                    Row(children: [
-                      SizedBox(
-                          width: 100,
-                          child: TextFormField(
-                            decoration: const InputDecoration(labelText: '块号'),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            onChanged: (v) =>
-                                _blockNumber = int.tryParse(v) ?? 0,
-                          )),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: '块号'),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) => _blockNumber = int.tryParse(v) ?? 0,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
                         onPressed: () => _execute(HfIclassCmd.rdbl(_blockNumber,
                             key: _key.isEmpty ? null : _key)),
                         icon: const Icon(Icons.visibility, size: 18),
                         label: const Text('读取块'),
                       ),
-                    ]),
+                    ),
                     const SizedBox(height: 12),
                     HexInputField(
                         label: '写入数据 (8 字节 hex)',
@@ -179,13 +175,22 @@ class _HfIclassPageState extends State<HfIclassPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 
   Widget _buildCrackTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 300,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ActionCard(
             title: '检查密钥',
             subtitle: '检查常用默认密钥',
@@ -202,13 +207,22 @@ class _HfIclassPageState extends State<HfIclassPage>
             icon: Icons.hearing,
             onTap: () => _execute(HfIclassCmd.sniff())),
       ]),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 
   Widget _buildEmulatorTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 340,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -246,6 +260,15 @@ class _HfIclassPageState extends State<HfIclassPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 }

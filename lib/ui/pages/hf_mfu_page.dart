@@ -101,58 +101,46 @@ class _HfMfuPageState extends State<HfMfuPage>
 
   // ── Info tab ──────────────────────────────────────────────
   Widget _buildInfoTab() {
-    return Row(
-      children: [
-        SizedBox(
-          width: 220,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ActionCard(
-                    title: '获取信息',
-                    subtitle: '读取 MFU/NTAG 标签',
-                    icon: Icons.info_outline,
-                    onTap: () => _execute(HfMfuCmd.info())),
-                ActionCard(
-                    title: '转储卡片',
-                    subtitle: '读取全部数据到文件',
-                    icon: Icons.download,
-                    onTap: () => _execute(HfMfuCmd.dump())),
-                ActionCard(
-                    title: '擦除卡片',
-                    subtitle: '清空卡片数据',
-                    icon: Icons.delete_forever,
-                    onTap: () => _confirmThenExecute(
-                        '确认擦除', '此操作不可恢复！', HfMfuCmd.wipe())),
-              ],
-            ),
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: ResultDisplay(
-              command: _lastCmd,
-              result: _result,
-              isLoading: _isLoading,
-              onClear: () => setState(() {
-                _result = '';
-                _lastCmd = '';
-              }),
-            ),
-          ),
-        ),
-      ],
+    return SplitPageLayout(
+      sideWidth: 280,
+      side: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ActionCard(
+              title: '获取信息',
+              subtitle: '读取 MFU/NTAG 标签',
+              icon: Icons.info_outline,
+              onTap: () => _execute(HfMfuCmd.info())),
+          ActionCard(
+              title: '转储卡片',
+              subtitle: '读取全部数据到文件',
+              icon: Icons.download,
+              onTap: () => _execute(HfMfuCmd.dump())),
+          ActionCard(
+              title: '擦除卡片',
+              subtitle: '清空卡片数据',
+              icon: Icons.delete_forever,
+              onTap: () =>
+                  _confirmThenExecute('确认擦除', '此操作不可恢复！', HfMfuCmd.wipe())),
+        ],
+      ),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 
   // ── Read / Write tab ──────────────────────────────────────
   Widget _buildReadWriteTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
@@ -164,26 +152,20 @@ class _HfMfuPageState extends State<HfMfuPage>
                   const Text('块操作',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 100,
-                        child: TextFormField(
-                          decoration: const InputDecoration(labelText: '块号'),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                          onChanged: (v) => _blockNumber = int.tryParse(v) ?? 0,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => _execute(HfMfuCmd.rdbl(_blockNumber)),
-                        icon: const Icon(Icons.visibility, size: 18),
-                        label: const Text('读取块'),
-                      ),
-                    ],
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: '块号'),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (v) => _blockNumber = int.tryParse(v) ?? 0,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _execute(HfMfuCmd.rdbl(_blockNumber)),
+                      icon: const Icon(Icons.visibility, size: 18),
+                      label: const Text('读取块'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   HexInputField(
@@ -234,52 +216,49 @@ class _HfMfuPageState extends State<HfMfuPage>
           ),
         ],
       ),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 
   // ── NDEF tab ──────────────────────────────────────────────
   Widget _buildNdefTab() {
-    return Row(
-      children: [
-        SizedBox(
-          width: 220,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ActionCard(
-                    title: '读取 NDEF',
-                    subtitle: '读取 NFC 数据交换格式',
-                    icon: Icons.article,
-                    onTap: () => _execute(HfMfuCmd.ndefRead())),
-              ],
-            ),
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: ResultDisplay(
-              command: _lastCmd,
-              result: _result,
-              isLoading: _isLoading,
-              onClear: () => setState(() {
-                _result = '';
-                _lastCmd = '';
-              }),
-            ),
-          ),
-        ),
-      ],
+    return SplitPageLayout(
+      sideWidth: 280,
+      side: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ActionCard(
+              title: '读取 NDEF',
+              subtitle: '读取 NFC 数据交换格式',
+              icon: Icons.article,
+              onTap: () => _execute(HfMfuCmd.ndefRead())),
+        ],
+      ),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 
   // ── Emulator tab ──────────────────────────────────────────
   Widget _buildEmulatorTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return SplitPageLayout(
+      sideWidth: 340,
+      side: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
@@ -336,14 +315,23 @@ class _HfMfuPageState extends State<HfMfuPage>
           ),
         ],
       ),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
+      ),
     );
   }
 
   // ── Tools tab ─────────────────────────────────────────────
   Widget _buildToolsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ActionCard(
@@ -390,6 +378,15 @@ class _HfMfuPageState extends State<HfMfuPage>
             ),
           ),
         ],
+      ),
+      main: ResultDisplay(
+        command: _lastCmd,
+        result: _result,
+        isLoading: _isLoading,
+        onClear: () => setState(() {
+          _result = '';
+          _lastCmd = '';
+        }),
       ),
     );
   }

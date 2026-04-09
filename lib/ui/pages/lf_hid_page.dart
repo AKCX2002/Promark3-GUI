@@ -109,9 +109,9 @@ class _LfHidPageState extends State<LfHidPage>
   }
 
   Widget _buildCloneSimTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 340,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -153,13 +153,21 @@ class _LfHidPageState extends State<LfHidPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildCrackTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -188,6 +196,14 @@ class _LfHidPageState extends State<LfHidPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 }

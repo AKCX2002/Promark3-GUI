@@ -1,10 +1,12 @@
 /// LF (Low Frequency) operations page.
 library;
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pm3gui/state/app_state.dart';
 import 'package:pm3gui/services/pm3_commands.dart';
+import 'package:pm3gui/ui/components/components.dart';
 
 class LfPage extends StatefulWidget {
   const LfPage({super.key});
@@ -17,6 +19,11 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _em410xId = '';
 
+  String _lastCmd = '';
+  String _result = '';
+  bool _isLoading = false;
+  StreamSubscription<String>? _sub;
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +33,7 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
+    _sub?.cancel();
     super.dispose();
   }
 
@@ -37,7 +45,27 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
       );
       return;
     }
+
+    setState(() {
+      _lastCmd = cmd;
+      _isLoading = true;
+      _result = '';
+    });
+
+    final buf = StringBuffer();
+    _sub?.cancel();
+    _sub = appState.pm3.outputStream.listen((line) {
+      if (!line.startsWith('[pm3]')) {
+        buf.writeln(line);
+        if (mounted) setState(() => _result = buf.toString());
+      }
+    });
+
     appState.sendCommand(cmd);
+    Future.delayed(const Duration(seconds: 5), () {
+      _sub?.cancel();
+      if (mounted) setState(() => _isLoading = false);
+    });
   }
 
   @override
@@ -67,9 +95,9 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildGeneral() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return SplitPageLayout(
+      sideWidth: 300,
+      side: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _actionCard('低频搜索', '自动检测低频标签', Icons.search, () {
@@ -86,13 +114,21 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
           }),
         ],
       ),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildEm4x() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _actionCard('读取 EM410x', '读取 EM4100 标签 ID', Icons.nfc, () {
@@ -105,7 +141,8 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('克隆 EM410x', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('克隆 EM410x',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   TextFormField(
                     decoration: const InputDecoration(
@@ -135,13 +172,21 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
           ),
         ],
       ),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildT55xx() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return SplitPageLayout(
+      sideWidth: 360,
+      side: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _actionCard('检测', '检测 T55xx 芯片配置', Icons.memory, () {
@@ -160,18 +205,21 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('块操作', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('块操作',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   for (var block = 0; block < 8; block++)
                     ListTile(
                       dense: true,
-                      title: Text('块 $block', style: const TextStyle(fontFamily: 'monospace')),
+                      title: Text('块 $block',
+                          style: const TextStyle(fontFamily: 'monospace')),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
                             icon: const Icon(Icons.visibility, size: 20),
-                            onPressed: () => _execute(Pm3Commands.lfT55xxReadBlock(block)),
+                            onPressed: () =>
+                                _execute(Pm3Commands.lfT55xxReadBlock(block)),
                             tooltip: '读取',
                           ),
                         ],
@@ -183,16 +231,26 @@ class _LfPageState extends State<LfPage> with SingleTickerProviderStateMixin {
           ),
         ],
       ),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
-  Widget _actionCard(String title, String subtitle, IconData icon, VoidCallback onTap) {
+  Widget _actionCard(
+      String title, String subtitle, IconData icon, VoidCallback onTap) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
         title: Text(title),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+        subtitle: Text(subtitle,
+            style: TextStyle(fontSize: 12, color: Colors.grey[400])),
         trailing: const Icon(Icons.play_arrow),
         onTap: onTap,
       ),

@@ -122,9 +122,9 @@ class _HfFelicaPageState extends State<HfFelicaPage>
   }
 
   Widget _buildReadWriteTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 340,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -187,6 +187,14 @@ class _HfFelicaPageState extends State<HfFelicaPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 }

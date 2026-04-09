@@ -135,9 +135,9 @@ class _HfMfdesPageState extends State<HfMfdesPage>
   }
 
   Widget _buildAppTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 300,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 8, children: [
           ElevatedButton.icon(
               onPressed: () => _execute(HfMfdesCmd.getaids()),
@@ -173,13 +173,21 @@ class _HfMfdesPageState extends State<HfMfdesPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildFileTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 8, children: [
           ElevatedButton.icon(
               onPressed: () => _execute(HfMfdesCmd.getfileids()),
@@ -219,7 +227,6 @@ class _HfMfdesPageState extends State<HfMfdesPage>
                               : null,
                           icon: const Icon(Icons.visibility, size: 18),
                           label: const Text('读取')),
-                      const SizedBox(width: 8),
                     ]),
                     const SizedBox(height: 8),
                     HexInputField(
@@ -235,13 +242,21 @@ class _HfMfdesPageState extends State<HfMfdesPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildManageTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -252,26 +267,32 @@ class _HfMfdesPageState extends State<HfMfdesPage>
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Row(children: [
-                      SizedBox(
-                          width: 100,
+                      Expanded(
                           child: TextFormField(
-                            decoration: const InputDecoration(labelText: '密钥号'),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            onChanged: (v) => _keyNumber = int.tryParse(v) ?? 0,
-                          )),
-                      const SizedBox(width: 12),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'aes', label: Text('AES')),
-                          ButtonSegment(value: 'des', label: Text('DES')),
-                          ButtonSegment(value: '3des', label: Text('3DES')),
+                        decoration: const InputDecoration(labelText: '密钥号'),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
                         ],
-                        selected: {_algorithm},
-                        onSelectionChanged: (v) =>
-                            setState(() => _algorithm = v.first),
+                        onChanged: (v) => _keyNumber = int.tryParse(v) ?? 0,
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _algorithm,
+                          decoration: const InputDecoration(
+                            labelText: '算法',
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'aes', child: Text('AES')),
+                            DropdownMenuItem(value: 'des', child: Text('DES')),
+                            DropdownMenuItem(
+                                value: '3des', child: Text('3DES')),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _algorithm = v ?? 'aes'),
+                        ),
                       ),
                     ]),
                     const SizedBox(height: 8),
@@ -304,6 +325,14 @@ class _HfMfdesPageState extends State<HfMfdesPage>
             onTap: () => _confirmThenExecute(
                 '确认格式化', '此操作将删除所有应用和数据，不可恢复！', HfMfdesCmd.formatpicc())),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 

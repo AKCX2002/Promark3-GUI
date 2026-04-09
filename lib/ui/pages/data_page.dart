@@ -139,9 +139,9 @@ class _DataPageState extends State<DataPage>
   }
 
   Widget _buildAnalyzeTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -195,13 +195,21 @@ class _DataPageState extends State<DataPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
   Widget _buildDiffTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Card(
+    return SplitPageLayout(
+      sideWidth: 320,
+      side: Card(
           child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -230,6 +238,14 @@ class _DataPageState extends State<DataPage>
                       label: const Text('比较')),
                 ],
               ))),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 }

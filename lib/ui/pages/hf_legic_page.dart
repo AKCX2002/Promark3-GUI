@@ -118,9 +118,9 @@ class _HfLegicPageState extends State<HfLegicPage>
   }
 
   Widget _buildReadWriteTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    return SplitPageLayout(
+      sideWidth: 340,
+      side: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Card(
             child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -131,35 +131,36 @@ class _HfLegicPageState extends State<HfLegicPage>
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Row(children: [
-                      SizedBox(
-                          width: 100,
+                      Expanded(
                           child: TextFormField(
-                            decoration: const InputDecoration(labelText: '偏移'),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            onChanged: (v) => _offset = int.tryParse(v) ?? 0,
-                          )),
+                        decoration: const InputDecoration(labelText: '偏移'),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        onChanged: (v) => _offset = int.tryParse(v) ?? 0,
+                      )),
                       const SizedBox(width: 8),
-                      SizedBox(
-                          width: 100,
+                      Expanded(
                           child: TextFormField(
-                            decoration: const InputDecoration(labelText: '长度'),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            initialValue: '16',
-                            onChanged: (v) => _length = int.tryParse(v) ?? 16,
-                          )),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
+                        decoration: const InputDecoration(labelText: '长度'),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        initialValue: '16',
+                        onChanged: (v) => _length = int.tryParse(v) ?? 16,
+                      )),
+                    ]),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
                           onPressed: () =>
                               _execute(HfLegicCmd.rdbl(_offset, _length)),
                           icon: const Icon(Icons.visibility, size: 18),
                           label: const Text('读取')),
-                    ]),
+                    ),
                     const SizedBox(height: 12),
                     HexInputField(
                         label: '写入数据 (hex)', onChanged: (v) => _writeData = v),
@@ -174,6 +175,14 @@ class _HfLegicPageState extends State<HfLegicPage>
                   ],
                 ))),
       ]),
+      main: ResultDisplay(
+          command: _lastCmd,
+          result: _result,
+          isLoading: _isLoading,
+          onClear: () => setState(() {
+                _result = '';
+                _lastCmd = '';
+              })),
     );
   }
 
