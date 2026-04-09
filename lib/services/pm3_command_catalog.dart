@@ -20,6 +20,29 @@ class Pm3CommandEntry {
 
   String get label => '$command  (${className.replaceAll('Cmd', '')}.$name)';
 
+  String get localizedHint {
+    // Prefer the first meaningful (non-help) param line from zh YAML.
+    for (final p in params) {
+      final lower = p.toLowerCase();
+      final isHelp = lower.contains('--help') || lower.contains('此帮助');
+      if (!isHelp && p.trim().isNotEmpty) {
+        return p.trim();
+      }
+    }
+
+    if (description.trim().isNotEmpty) {
+      return description.trim();
+    }
+
+    return '${className.replaceAll('Cmd', '')}.$name';
+  }
+
+  String get localizedTooltip {
+    if (params.isEmpty) return label;
+    final preview = params.take(3).join('\n');
+    return '$label\n$preview';
+  }
+
   bool matches(String query) {
     if (query.trim().isEmpty) return false;
     final q = query.toLowerCase();

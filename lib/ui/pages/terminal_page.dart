@@ -16,10 +16,6 @@ class _AutocompletePrevIntent extends Intent {
   const _AutocompletePrevIntent();
 }
 
-class _CancelAutocompleteIntent extends Intent {
-  const _CancelAutocompleteIntent();
-}
-
 class TerminalPage extends StatefulWidget {
   const TerminalPage({super.key});
 
@@ -49,6 +45,15 @@ class _TerminalPageState extends State<TerminalPage> {
     if (!_isCyclingAutocomplete || _cycleIndex < 0) return null;
     if (_cycleIndex >= _cycleCandidates.length) return null;
     return _cycleCandidates[_cycleIndex].command;
+  }
+
+  Pm3CommandEntry? get _selectedOrFirstSuggestion {
+    if (_displaySuggestions.isEmpty) return null;
+    if (_selectedSuggestionCommand == null) return _displaySuggestions.first;
+    for (final e in _displaySuggestions) {
+      if (e.command == _selectedSuggestionCommand) return e;
+    }
+    return _displaySuggestions.first;
   }
 
   Pm3CommandEntry? get _activeEntry {
@@ -92,12 +97,6 @@ class _TerminalPageState extends State<TerminalPage> {
     if (!_isCyclingAutocomplete) return;
     _cycleCandidates = const [];
     _cycleIndex = -1;
-  }
-
-  void _cancelAutocompleteCycle() {
-    _resetAutocompleteCycle();
-    _updateSuggestions();
-    setState(() {});
   }
 
   Future<void> _loadCatalog() async {
@@ -287,7 +286,7 @@ class _TerminalPageState extends State<TerminalPage> {
                       item.command,
                       style: const TextStyle(fontSize: 12),
                     ),
-                    tooltip: item.label,
+                    tooltip: item.localizedTooltip,
                     backgroundColor: selected ? Colors.blueGrey.shade700 : null,
                     visualDensity: VisualDensity.compact,
                     onPressed: () {
@@ -296,6 +295,22 @@ class _TerminalPageState extends State<TerminalPage> {
                   );
                 },
               ).toList(),
+            ),
+          ),
+
+        if (_selectedOrFirstSuggestion != null)
+          Container(
+            width: double.infinity,
+            color: const Color(0xFF17172A),
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+            child: Text(
+              '提示：${_selectedOrFirstSuggestion!.localizedHint}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.blueGrey.shade100,
+              ),
             ),
           ),
 
@@ -323,8 +338,6 @@ class _TerminalPageState extends State<TerminalPage> {
                       LogicalKeyboardKey.tab,
                       shift: true,
                     ): const _AutocompletePrevIntent(),
-                    const SingleActivator(LogicalKeyboardKey.escape):
-                        const _CancelAutocompleteIntent(),
                   },
                   child: Actions(
                     actions: {
@@ -341,31 +354,16 @@ class _TerminalPageState extends State<TerminalPage> {
                           return null;
                         },
                       ),
-                      _CancelAutocompleteIntent:
-                          CallbackAction<_CancelAutocompleteIntent>(
-                        onInvoke: (_) {
-                          _cancelAutocompleteCycle();
-                          return null;
-                        },
-                      ),
                     },
                     child: KeyboardListener(
                       focusNode: FocusNode(),
                       onKeyEvent: (event) {
                         if (event is KeyDownEvent) {
                           if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                            if (_displaySuggestions.isNotEmpty) {
-                              _cycleAutocomplete(forward: false);
-                            } else {
-                              _navigateHistory(-1);
-                            }
+                            _navigateHistory(-1);
                           } else if (event.logicalKey ==
                               LogicalKeyboardKey.arrowDown) {
-                            if (_displaySuggestions.isNotEmpty) {
-                              _cycleAutocomplete(forward: true);
-                            } else {
-                              _navigateHistory(1);
-                            }
+                            _navigateHistory(1);
                           }
                         }
                       },
@@ -378,7 +376,7 @@ class _TerminalPageState extends State<TerminalPage> {
                         ),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          hintText: '输入命令...（Tab/Shift+Tab 循环，Esc 退出）',
+                          hintText: '输入命令...（Tab/Shift+Tab 循环补全）',
                           isDense: true,
                           contentPadding: EdgeInsets.zero,
                         ),
@@ -498,9 +496,13 @@ class _TerminalPageState extends State<TerminalPage> {
                             dense: true,
                             title: Text(item.command),
                             subtitle: Text(
-                              '${item.className} · ${item.name}${item.params.isNotEmpty ? ' · ${item.params.first}' : ''}',
+                              item.localizedHint,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Text(
+                              '${item.className}·${item.name}',
+                              style: Theme.of(context).textTheme.labelSmall,
                             ),
                             onTap: () => Navigator.pop(context, item.command),
                           );
@@ -555,7 +557,7 @@ class _TerminalPageState extends State<TerminalPage> {
     if (appState.historyIndex < 0) appState.historyIndex = 0;
     if (appState.historyIndex >= history.length) {
       appState.historyIndex = history.length;
-      _setInputText('', preserveCycle: false);
+      _inputController.clear();
       return;
     }
 
