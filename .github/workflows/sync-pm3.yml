@@ -162,11 +162,12 @@ jobs:
           cd proxmark3
           mkdir -p build-android
           cd build-android
-          cmake .. \
+          # proxmark3's CMakeLists for the client lives in the 'client' subfolder
+          cmake ../client \
             -DCMAKE_TOOLCHAIN_FILE="$HOME/android-ndk-${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="${{ matrix.abi }}" \
             -DANDROID_NATIVE_API_LEVEL=21
-          make client -j"$(nproc)"
+          cmake --build . --target client -j"$(nproc)"
         shell: bash
 
       - name: Upload Android artifact
