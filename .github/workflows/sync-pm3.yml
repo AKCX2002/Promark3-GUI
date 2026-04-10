@@ -15,8 +15,13 @@ on:
         description: 'Android NDK version (e.g. r25b)'
         required: false
         default: 'r25b'
+      publish_release:
+        description: 'Publish pm3-client release'
+        required: false
+        type: boolean
+        default: true
   push:
-    branches: [master]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -50,8 +55,7 @@ jobs:
         shell: bash
 
       - name: Clone Proxmark3
-        run: |
-          git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
+        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
         shell: bash
 
       - name: Build on Linux
@@ -131,14 +135,17 @@ jobs:
         run: |
           echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
           echo "timestamp=$(date -u +%Y%m%dT%H%M%SZ)" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Clone Proxmark3
         run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
+        shell: bash
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev wget unzip cmake
+        shell: bash
 
       - name: Install Android NDK
         run: |
@@ -146,6 +153,7 @@ jobs:
           wget -q "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" -O ndk.zip
           unzip -q ndk.zip
           rm -f ndk.zip
+        shell: bash
 
       - name: Build Android client
         run: |
@@ -158,6 +166,7 @@ jobs:
             -DANDROID_ABI="${{ matrix.abi }}" \
             -DANDROID_NATIVE_API_LEVEL=21
           make client -j"$(nproc)"
+        shell: bash
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v6
@@ -171,13 +180,14 @@ jobs:
     name: Publish pm3-client release
     runs-on: ubuntu-latest
     needs: [build-native, build-android]
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release != 'false')
     permissions:
       contents: write
     steps:
       - name: Set release metadata
         id: meta
         run: echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7
@@ -187,11 +197,11 @@ jobs:
 
       - name: List artifacts
         run: ls -la artifacts || true
+        shell: bash
 
       - name: Create Release
         uses: softprops/action-gh-release@v2.6.1
         with:
           tag_name: pm3-client-${{ steps.meta.outputs.short_sha }}
           name: pm3-client-${{ steps.meta.outputs.short_sha }}
-          files: |
-            artifacts/**
+          files: artifacts/**
