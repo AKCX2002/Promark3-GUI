@@ -23,11 +23,7 @@ on:
         required: false
         type: boolean
         default: true
-      build_android:
-        description: 'Build Android client binary (armeabi-v7a / arm64-v8a / x86_64)'
-        required: false
-        type: boolean
-        default: true
+      # Android builds removed from this workflow
       publish_release:
         description: 'Publish a GitHub release after build'
         required: false
@@ -247,73 +243,7 @@ jobs:
             proxmark3/armsrc/obj/fullimage.elf
             proxmark3/bootrom/obj/bootrom.elf
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Android cross-compile  (Ubuntu · NDK · CMake)
-#
-#    Builds the proxmark3 client for three Android ABIs.
-#    CMakeLists.txt lives in client/, not the repo root.
-#    The CMake target name is 'proxmark3' (from add_executable in CMakeLists).
-#    Skipped when build_android input is explicitly set to 'false'.
-# ─────────────────────────────────────────────────────────────────────────────
-  build-android:
-    name: Build Android client (${{ matrix.abi }})
-    runs-on: ubuntu-latest
-    if: github.event.inputs.build_android != 'false'
-    strategy:
-      fail-fast: false
-      matrix:
-        abi: [armeabi-v7a, arm64-v8a, x86_64]
-
-    steps:
-      - name: Checkout pm3gui
-        uses: actions/checkout@v5
-
-      - name: Set build metadata
-        id: meta
-        shell: bash
-        run: |
-          echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
-          echo "timestamp=$(date -u +%Y%m%dT%H%M%SZ)" >> $GITHUB_OUTPUT
-
-      - name: Clone Proxmark3
-        shell: bash
-        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            build-essential pkg-config cmake wget unzip \
-            libssl-dev libbz2-dev
-
-      - name: Install Android NDK ${{ env.NDK_VERSION }}
-        run: |
-          cd "$HOME"
-          wget -q "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" -O ndk.zip
-          unzip -q ndk.zip
-          rm -f ndk.zip
-
-      - name: Build Android client (${{ matrix.abi }})
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd proxmark3
-          # Each ABI gets its own build directory to avoid collisions
-          mkdir -p build-android-${{ matrix.abi }}
-          cd build-android-${{ matrix.abi }}
-          # CMakeLists.txt lives in client/, not the repo root
-          cmake ../client \
-            -DCMAKE_TOOLCHAIN_FILE="$HOME/android-ndk-${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI="${{ matrix.abi }}" \
-            -DANDROID_NATIVE_API_LEVEL=21
-          # Target name from add_executable(proxmark3 ...) in client/CMakeLists.txt
-          cmake --build . --target proxmark3 -j"$(nproc)"
-
-      - name: Upload Android artifact (${{ matrix.abi }})
-        uses: actions/upload-artifact@v6
-        with:
-          name: pm3-client-android-${{ matrix.abi }}-${{ steps.meta.outputs.short_sha }}
-          path: proxmark3/build-android-${{ matrix.abi }}/proxmark3
+# Android cross-compile removed from this workflow by request
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Release  – collect all artifacts and publish a GitHub release
@@ -325,12 +255,11 @@ jobs:
   release:
     name: Publish release
     runs-on: ubuntu-latest
-    needs: [build-client, build-firmware, build-android]
+    needs: [build-client, build-firmware]
     if: |
       !cancelled() &&
       needs.build-client.result == 'success' &&
       (needs.build-firmware.result == 'success' || needs.build-firmware.result == 'skipped') &&
-      (needs.build-android.result == 'success'  || needs.build-android.result  == 'skipped') &&
       (
         (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release != 'false')
@@ -377,9 +306,5 @@ jobs:
             | `pm3-firmware-generic-256k-*` | Generic Proxmark3 clone (256 KB) |
 
             ### Android client binaries
-            | File | ABI |
-            |------|-----|
-            | `pm3-client-android-arm64-v8a-*` | 64-bit ARM (modern Android) |
-            | `pm3-client-android-armeabi-v7a-*` | 32-bit ARM (older Android) |
-            | `pm3-client-android-x86_64-*` | x86_64 (emulator / Intel Chromebook) |
+            Android builds removed from this workflow; Android artifacts are no longer produced here.
           files: artifacts/**
