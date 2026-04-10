@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout pm3gui
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
 
       - name: Set build metadata
         id: meta
@@ -62,7 +62,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev git
+          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev libbz2-dev liblz4-dev zlib1g-dev git
           cd proxmark3
           make clean || true
           make client -j"$(nproc)"
@@ -72,7 +72,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew update
-          brew install pkg-config libusb readline openssl git
+          brew install pkg-config libusb readline openssl git bzip2
           cd proxmark3
           make clean || true
           make client -j"$(sysctl -n hw.ncpu)"
@@ -91,6 +91,7 @@ jobs:
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-libusb
             mingw-w64-ucrt-x86_64-readline
+            mingw-w64-ucrt-x86_64-bzip2
 
       - name: Build on Windows UCRT
         if: matrix.os == 'windows-latest'
@@ -103,7 +104,7 @@ jobs:
 
       - name: Upload artifact (Linux/macOS)
         if: matrix.os != 'windows-latest'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: proxmark3-client-${{ matrix.os }}-${{ steps.meta.outputs.short_sha }}-${{ steps.meta.outputs.timestamp }}
           path: |
@@ -112,7 +113,7 @@ jobs:
 
       - name: Upload artifact (Windows UCRT)
         if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: proxmark3-client-windows-ucrt-${{ steps.meta.outputs.short_sha }}-${{ steps.meta.outputs.timestamp }}
           path: |
@@ -128,7 +129,7 @@ jobs:
 
     steps:
       - name: Checkout pm3gui
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
 
       - name: Set build metadata
         id: meta
@@ -144,7 +145,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev wget unzip cmake
+          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev libbz2-dev wget unzip cmake
         shell: bash
 
       - name: Install Android NDK
@@ -169,7 +170,7 @@ jobs:
         shell: bash
 
       - name: Upload Android artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: proxmark3-client-android-${{ matrix.abi }}-${{ steps.meta.outputs.short_sha }}-${{ steps.meta.outputs.timestamp }}
           path: |
@@ -190,7 +191,7 @@ jobs:
         shell: bash
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           merge-multiple: true
           path: artifacts
