@@ -1,5 +1,8 @@
 name: Sync and build Proxmark3 for PM3 GUI
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
     inputs:
@@ -15,14 +18,27 @@ on:
         description: 'Android NDK version (e.g. r25b)'
         required: false
         default: 'r25b'
+      build_firmware:
+        description: 'Build firmware images (RDV4 / Generic-512K / Generic-256K)'
+        required: false
+        type: boolean
+        default: true
+      build_android:
+        description: 'Build Android client binary (armeabi-v7a / arm64-v8a / x86_64)'
+        required: false
+        type: boolean
+        default: true
       publish_release:
-        description: 'Publish pm3-client release'
+        description: 'Publish a GitHub release after build'
         required: false
         type: boolean
         default: true
   push:
     branches: [main, master]
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Permissions & concurrency
+# ─────────────────────────────────────────────────────────────────────────────
 permissions:
   contents: read
 
@@ -30,16 +46,28 @@ concurrency:
   group: sync-pm3-${{ github.ref }}
   cancel-in-progress: true
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared environment
+# ─────────────────────────────────────────────────────────────────────────────
 env:
-  PM3_REPO: ${{ github.event.inputs.pm3_repo || 'https://github.com/RfidResearchGroup/proxmark3.git' }}
-  PM3_BRANCH: ${{ github.event.inputs.pm3_branch || 'master' }}
+  PM3_REPO:    ${{ github.event.inputs.pm3_repo    || 'https://github.com/RfidResearchGroup/proxmark3.git' }}
+  PM3_BRANCH:  ${{ github.event.inputs.pm3_branch  || 'master' }}
   NDK_VERSION: ${{ github.event.inputs.ndk_version || 'r25b' }}
 
+# ═════════════════════════════════════════════════════════════════════════════
 jobs:
-  build-native:
-    name: Build native client on ${{ matrix.os }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Native client build  (Linux · macOS · Windows/MINGW64)
+#
+#    The proxmark3 client binary is platform-agnostic; PLATFORM only affects
+#    firmware.  We build with SKIPQT=1 so Qt is not required on the runner.
+# ─────────────────────────────────────────────────────────────────────────────
+  build-client:
+    name: Build client (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
@@ -49,81 +77,190 @@ jobs:
 
       - name: Set build metadata
         id: meta
+        shell: bash
         run: |
           echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
           echo "timestamp=$(date -u +%Y%m%dT%H%M%SZ)" >> $GITHUB_OUTPUT
-        shell: bash
 
       - name: Clone Proxmark3
-        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
         shell: bash
+        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
 
-      - name: Build on Linux
+      # ── Linux ──────────────────────────────────────────────────────────────
+      - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev libbz2-dev liblz4-dev zlib1g-dev git
-          cd proxmark3
-          make clean || true
-          make client -j"$(nproc)"
-        shell: bash
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential pkg-config git \
+            libusb-1.0-0-dev libreadline-dev libncurses5-dev \
+            libssl-dev libbz2-dev liblz4-dev zlib1g-dev \
+            liblua5.4-dev libpython3-dev libgd-dev
 
-      - name: Build on macOS
+      - name: Build client (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd proxmark3
+          make client SKIPQT=1 -j"$(nproc)"
+
+      # ── macOS ──────────────────────────────────────────────────────────────
+      - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew update
-          brew install pkg-config libusb readline openssl git bzip2
-          cd proxmark3
-          make clean || true
-          make client -j"$(sysctl -n hw.ncpu)"
-        shell: bash
+          brew update || true
+          brew install pkg-config libusb readline openssl bzip2 lz4 lua gd
+        continue-on-error: false
 
-      - name: Setup MSYS2 UCRT
+      - name: Build client (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd proxmark3
+          make client SKIPQT=1 -j"$(sysctl -n hw.ncpu)"
+
+      # ── Windows / MSYS2 MINGW64 ────────────────────────────────────────────
+      # Using MINGW64 (same as ProxSpace used by the official CI) for better
+      # POSIX header compatibility (arpa/inet.h, etc.)
+      - name: Setup MSYS2 MINGW64 (Windows)
         if: matrix.os == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: MINGW64
           update: true
           install: >-
             git
             make
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-libusb
-            mingw-w64-ucrt-x86_64-readline
-            mingw-w64-ucrt-x86_64-bzip2
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-libusb
+            mingw-w64-x86_64-readline
+            mingw-w64-x86_64-bzip2
+            mingw-w64-x86_64-lz4
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-lua
 
-      - name: Build on Windows UCRT
+      - name: Build client (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          export PATH="/ucrt64/bin:/usr/bin:$PATH"
-          cd proxmark3
-          make clean || true
-          make client -j2
         shell: msys2 {0}
+        run: |
+          export PATH="/mingw64/bin:/usr/bin:$PATH"
+          cd proxmark3
+          make client SKIPQT=1 -j2
 
-      - name: Upload artifact (Linux/macOS)
+      # ── Upload ─────────────────────────────────────────────────────────────
+      - name: Upload client artifact (Linux / macOS)
         if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: proxmark3-client-${{ matrix.os }}-${{ steps.meta.outputs.short_sha }}-${{ steps.meta.outputs.timestamp }}
+          name: pm3-client-${{ matrix.os }}-${{ steps.meta.outputs.short_sha }}
           path: |
             proxmark3/client/proxmark3
             proxmark3/pm3
 
-      - name: Upload artifact (Windows UCRT)
+      - name: Upload client artifact (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: proxmark3-client-windows-ucrt-${{ steps.meta.outputs.short_sha }}-${{ steps.meta.outputs.timestamp }}
+          name: pm3-client-windows-mingw64-${{ steps.meta.outputs.short_sha }}
           path: |
             proxmark3/client/proxmark3.exe
             proxmark3/pm3.exe
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Firmware build  (Ubuntu · arm-none-eabi toolchain)
+#
+#    Three platform variants are built in a matrix:
+#      rdv4        – PM3RDV4 (default, full-featured, 512 KB flash)
+#      generic-512k– PM3GENERIC for 512 KB flash clone devices
+#      generic-256k– PM3GENERIC with PLATFORM_SIZE=256 and reduced feature
+#                    set to fit in 256 KB flash (see Makefile.platform.sample)
+#
+#    Skipped when build_firmware input is explicitly set to 'false'.
+# ─────────────────────────────────────────────────────────────────────────────
+  build-firmware:
+    name: Build firmware (${{ matrix.variant.name }})
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_firmware != 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          # ── RDV4: default hardware, all features, 512 KB flash ────────────
+          - name: rdv4
+            make_args: PLATFORM=PM3RDV4
+
+          # ── Generic 512 KB: clone/generic hardware with full flash ─────────
+          - name: generic-512k
+            make_args: PLATFORM=PM3GENERIC
+
+          # ── Generic 256 KB: stripped build for 256 KB flash devices ────────
+          # See: doc/md/Use_of_Proxmark/4_Advanced-compilation-parameters.md
+          - name: generic-256k
+            make_args: >-
+              PLATFORM=PM3GENERIC
+              PLATFORM_SIZE=256
+              STANDALONE=
+              SKIP_LF=1
+              SKIP_HITAG=1
+              SKIP_EM4x50=1
+              SKIP_EM4x70=1
+              SKIP_ZX8211=1
+              SKIP_HF=1
+              SKIP_ISO15693=1
+              SKIP_LEGICRF=1
+
+    steps:
+      - name: Checkout pm3gui
+        uses: actions/checkout@v5
+
+      - name: Set build metadata
+        id: meta
+        shell: bash
+        run: |
+          echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date -u +%Y%m%dT%H%M%SZ)" >> $GITHUB_OUTPUT
+
+      - name: Clone Proxmark3
+        shell: bash
+        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
+
+      - name: Install firmware build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential pkg-config git \
+            gcc-arm-none-eabi libnewlib-dev \
+            libusb-1.0-0-dev libreadline-dev libncurses5-dev \
+            libssl-dev libbz2-dev liblz4-dev zlib1g-dev \
+            liblua5.4-dev libpython3-dev libgd-dev
+
+      - name: Build firmware (${{ matrix.variant.name }})
+        run: |
+          cd proxmark3
+          make fullimage SKIPQT=1 ${{ matrix.variant.make_args }} -j"$(nproc)"
+
+      - name: Upload firmware artifact (${{ matrix.variant.name }})
+        uses: actions/upload-artifact@v6
+        with:
+          name: pm3-firmware-${{ matrix.variant.name }}-${{ steps.meta.outputs.short_sha }}
+          path: |
+            proxmark3/armsrc/obj/fullimage.elf
+            proxmark3/bootrom/obj/bootrom.elf
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. Android cross-compile  (Ubuntu · NDK · CMake)
+#
+#    Builds the proxmark3 client for three Android ABIs.
+#    CMakeLists.txt lives in client/, not the repo root.
+#    The CMake target name is 'proxmark3' (from add_executable in CMakeLists).
+#    Skipped when build_android input is explicitly set to 'false'.
+# ─────────────────────────────────────────────────────────────────────────────
   build-android:
     name: Build Android client (${{ matrix.abi }})
     runs-on: ubuntu-latest
+    if: github.event.inputs.build_android != 'false'
     strategy:
+      fail-fast: false
       matrix:
         abi: [armeabi-v7a, arm64-v8a, x86_64]
 
@@ -133,63 +270,79 @@ jobs:
 
       - name: Set build metadata
         id: meta
+        shell: bash
         run: |
           echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
           echo "timestamp=$(date -u +%Y%m%dT%H%M%SZ)" >> $GITHUB_OUTPUT
-        shell: bash
 
       - name: Clone Proxmark3
-        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
         shell: bash
+        run: git clone --depth=1 --branch "${PM3_BRANCH}" "${PM3_REPO}" proxmark3
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libusb-1.0-0-dev libreadline-dev libncurses5-dev libssl-dev libbz2-dev wget unzip cmake
-        shell: bash
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential pkg-config cmake wget unzip \
+            libssl-dev libbz2-dev
 
-      - name: Install Android NDK
+      - name: Install Android NDK ${{ env.NDK_VERSION }}
         run: |
           cd "$HOME"
           wget -q "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" -O ndk.zip
           unzip -q ndk.zip
           rm -f ndk.zip
-        shell: bash
 
-      - name: Build Android client
+      - name: Build Android client (${{ matrix.abi }})
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
           cd proxmark3
-          mkdir -p build-android
-          cd build-android
-          # proxmark3's CMakeLists for the client lives in the 'client' subfolder
+          # Each ABI gets its own build directory to avoid collisions
+          mkdir -p build-android-${{ matrix.abi }}
+          cd build-android-${{ matrix.abi }}
+          # CMakeLists.txt lives in client/, not the repo root
           cmake ../client \
             -DCMAKE_TOOLCHAIN_FILE="$HOME/android-ndk-${NDK_VERSION}/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI="${{ matrix.abi }}" \
             -DANDROID_NATIVE_API_LEVEL=21
-          cmake --build . --target client -j"$(nproc)"
-        shell: bash
+          # Target name from add_executable(proxmark3 ...) in client/CMakeLists.txt
+          cmake --build . --target proxmark3 -j"$(nproc)"
 
-      - name: Upload Android artifact
+      - name: Upload Android artifact (${{ matrix.abi }})
         uses: actions/upload-artifact@v6
         with:
-          name: proxmark3-client-android-${{ matrix.abi }}-${{ steps.meta.outputs.short_sha }}-${{ steps.meta.outputs.timestamp }}
-          path: |
-            proxmark3/client/proxmark3
-            proxmark3/pm3
+          name: pm3-client-android-${{ matrix.abi }}-${{ steps.meta.outputs.short_sha }}
+          path: proxmark3/build-android-${{ matrix.abi }}/proxmark3
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Release  – collect all artifacts and publish a GitHub release
+#
+#    Runs after all three build jobs.  Proceeds even when firmware / android
+#    jobs were intentionally skipped (result == 'skipped'), but aborts if any
+#    job failed or was cancelled.
+# ─────────────────────────────────────────────────────────────────────────────
   release:
-    name: Publish pm3-client release
+    name: Publish release
     runs-on: ubuntu-latest
-    needs: [build-native, build-android]
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release != 'false')
+    needs: [build-client, build-firmware, build-android]
+    if: |
+      !cancelled() &&
+      needs.build-client.result == 'success' &&
+      (needs.build-firmware.result == 'success' || needs.build-firmware.result == 'skipped') &&
+      (needs.build-android.result == 'success'  || needs.build-android.result  == 'skipped') &&
+      (
+        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release != 'false')
+      )
     permissions:
       contents: write
+
     steps:
       - name: Set release metadata
         id: meta
-        run: echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
         shell: bash
+        run: echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7
@@ -198,12 +351,35 @@ jobs:
           path: artifacts
 
       - name: List artifacts
-        run: ls -la artifacts || true
         shell: bash
+        run: ls -la artifacts/ || true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2.6.1
         with:
           tag_name: pm3-client-${{ steps.meta.outputs.short_sha }}
-          name: pm3-client-${{ steps.meta.outputs.short_sha }}
+          name: "pm3-client ${{ steps.meta.outputs.short_sha }}"
+          body: |
+            ## Proxmark3 builds — ${{ steps.meta.outputs.short_sha }}
+
+            ### Client binaries (host PC)
+            | File | Platform |
+            |------|----------|
+            | `pm3-client-ubuntu-latest-*` | Linux x86_64 |
+            | `pm3-client-macos-latest-*`  | macOS (Intel/Apple Silicon) |
+            | `pm3-client-windows-mingw64-*` | Windows 64-bit (MINGW64) |
+
+            ### Firmware images (flash to device)
+            | File | Hardware target |
+            |------|----------------|
+            | `pm3-firmware-rdv4-*` | Proxmark3 RDV4 (512 KB, default) |
+            | `pm3-firmware-generic-512k-*` | Generic Proxmark3 clone (512 KB) |
+            | `pm3-firmware-generic-256k-*` | Generic Proxmark3 clone (256 KB) |
+
+            ### Android client binaries
+            | File | ABI |
+            |------|-----|
+            | `pm3-client-android-arm64-v8a-*` | 64-bit ARM (modern Android) |
+            | `pm3-client-android-armeabi-v7a-*` | 32-bit ARM (older Android) |
+            | `pm3-client-android-x86_64-*` | x86_64 (emulator / Intel Chromebook) |
           files: artifacts/**
