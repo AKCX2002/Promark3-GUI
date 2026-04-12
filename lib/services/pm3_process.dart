@@ -159,24 +159,26 @@ class Pm3Process {
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
-        // 限制输出频率，避免 UI 卡顿
-        if (!_shouldOutput(line)) return;
-
-        _outputController.add(line);
+        // 始终写入响应缓冲区，以便 sendCommandAndWait 等函数
+        // 能够获得完整输出，即使 UI 出于限流而丢弃显示行。
         _responseBuffer.writeln(line);
 
-        // 检测致命错误 — 立即停止
+        // 始终检查致命错误和连接提示（不能被限流跳过）
         if (_detectFatalError(line)) {
           if (!completer.isCompleted) completer.complete(false);
           return;
         }
 
-        // 检测成功连接（pm3 在连接时打印 OS 信息）
         if (!connected && _isConnectionPrompt(line)) {
           connected = true;
           _extractVersion(line);
           _setState(Pm3State.connected);
           if (!completer.isCompleted) completer.complete(true);
+        }
+
+        // 限制输出频率，避免 UI 卡顿 — 仅影响 UI，不影响内部缓冲
+        if (_shouldOutput(line)) {
+          _outputController.add(line);
         }
       });
 
@@ -185,11 +187,13 @@ class Pm3Process {
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
-        // 限制输出频率，避免 UI 卡顿
-        if (!_shouldOutput(line)) return;
-
-        _outputController.add('[ERR] $line');
+        // 始终检查致命错误
         _detectFatalError(line);
+
+        // 将 stderr 以 [ERR] 前缀发送到 UI，但仍遵守 UI 限流
+        if (_shouldOutput(line)) {
+          _outputController.add('[ERR] $line');
+        }
       });
 
       // 处理进程退出
