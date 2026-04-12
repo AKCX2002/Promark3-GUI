@@ -43,13 +43,15 @@ void main() {
   final keys = extractKeys(sample);
   print('extractKeys returned ${keys.length} entries');
   for (final k in keys) {
-    print('Sector ${k.sector}: keyA=${k.keyA} found=${k.keyAFound} keyB=${k.keyB} found=${k.keyBFound}');
+    print(
+        'Sector ${k.sector}: keyA=${k.keyA} found=${k.keyAFound} keyB=${k.keyB} found=${k.keyBFound}');
   }
 
   final stripped = stripAnsi(sample);
   final keys2 = extractKeys(stripped);
   print('\nAfter stripAnsi: ${keys2.length} entries');
   for (final k in keys2) {
-    print('Sector ${k.sector}: keyA=${k.keyA} found=${k.keyAFound} keyB=${k.keyB} found=${k.keyBFound}');
+    print(
+        'Sector ${k.sector}: keyA=${k.keyA} found=${k.keyAFound} keyB=${k.keyB} found=${k.keyBFound}');
   }
 }

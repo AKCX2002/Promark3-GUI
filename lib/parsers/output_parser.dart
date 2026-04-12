@@ -154,19 +154,35 @@ List<ExtractedKey> extractKeysFromTargetLines(String output) {
     if (existing == null) {
       if (type == 'A') {
         map[sector] = ExtractedKey(
-            sector: sector, keyA: key, keyB: '', keyAFound: true, keyBFound: false);
+            sector: sector,
+            keyA: key,
+            keyB: '',
+            keyAFound: true,
+            keyBFound: false);
       } else {
         map[sector] = ExtractedKey(
-            sector: sector, keyA: '', keyB: key, keyAFound: false, keyBFound: true);
+            sector: sector,
+            keyA: '',
+            keyB: key,
+            keyAFound: false,
+            keyBFound: true);
       }
     } else {
       // update existing
-      final keyA = existing.keyA.isNotEmpty ? existing.keyA : (type == 'A' ? key : existing.keyA);
-      final keyB = existing.keyB.isNotEmpty ? existing.keyB : (type == 'B' ? key : existing.keyB);
+      final keyA = existing.keyA.isNotEmpty
+          ? existing.keyA
+          : (type == 'A' ? key : existing.keyA);
+      final keyB = existing.keyB.isNotEmpty
+          ? existing.keyB
+          : (type == 'B' ? key : existing.keyB);
       final keyAFound = existing.keyAFound || (type == 'A');
       final keyBFound = existing.keyBFound || (type == 'B');
       map[sector] = ExtractedKey(
-          sector: sector, keyA: keyA, keyB: keyB, keyAFound: keyAFound, keyBFound: keyBFound);
+          sector: sector,
+          keyA: keyA,
+          keyB: keyB,
+          keyAFound: keyAFound,
+          keyBFound: keyBFound);
     }
   }
 
