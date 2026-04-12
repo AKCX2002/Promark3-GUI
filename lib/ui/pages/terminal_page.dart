@@ -270,13 +270,16 @@ class _TerminalPageState extends State<TerminalPage> {
 
   @override
   Widget build(BuildContext context) {
-    final outputRevision =
-        context.select<AppState, int>((s) => s.outputRevision);
+    // Keep a subscription to the revision counter so the widget rebuilds
+    // when terminal output changes. Value itself is unused below.
+    context.select<AppState, int>((s) => s.outputRevision);
     final isConnected = context.select<AppState, bool>((s) => s.isConnected);
     final appState = context.read<AppState>();
     final output = appState.terminalOutputStripped;
 
-    _scheduleAutoScrollIfOutputChanged(outputRevision);
+    // Use the actual line count for auto-scroll logic so we detect
+    // appended lines correctly (outputRevision is a revision counter).
+    _scheduleAutoScrollIfOutputChanged(output.length);
 
     return Column(
       children: [
