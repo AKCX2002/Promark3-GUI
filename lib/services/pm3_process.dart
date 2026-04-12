@@ -34,11 +34,6 @@ class Pm3Process {
   /// 用于响应匹配的累积输出缓冲区
   final _responseBuffer = StringBuffer();
 
-  /// 输出行计数器，用于限制输出频率
-  int _outputCount = 0;
-
-  /// 上次输出时间戳
-  DateTime _lastOutputTime = DateTime.now();
 
   Stream<String> get outputStream => _outputController.stream;
   Stream<Pm3State> get stateStream => _stateController.stream;
@@ -163,7 +158,7 @@ class Pm3Process {
         // 能够获得完整输出，即使 UI 出于限流而丢弃显示行。
         _responseBuffer.writeln(line);
 
-        // 始终检查致命错误和连接提示（不能被限流跳过）
+        // 检测致命错误和连接提示
         if (_detectFatalError(line)) {
           if (!completer.isCompleted) completer.complete(false);
           return;
@@ -176,10 +171,8 @@ class Pm3Process {
           if (!completer.isCompleted) completer.complete(true);
         }
 
-        // 限制输出频率，避免 UI 卡顿 — 仅影响 UI，不影响内部缓冲
-        if (_shouldOutput(line)) {
-          _outputController.add(line);
-        }
+        // 所有行直接发送给 UI，不做限流，避免长命令输出被截断
+        _outputController.add(line);
       });
 
       // 监听 stderr
@@ -187,13 +180,8 @@ class Pm3Process {
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
-        // 始终检查致命错误
         _detectFatalError(line);
-
-        // 将 stderr 以 [ERR] 前缀发送到 UI，但仍遵守 UI 限流
-        if (_shouldOutput(line)) {
-          _outputController.add('[ERR] $line');
-        }
+        _outputController.add('[ERR] $line');
       });
 
       // 处理进程退出
@@ -272,10 +260,10 @@ class Pm3Process {
 
   /// 发送命令并等待输出稳定
   /// [timeout] - 超时时间，默认为10秒
-    /// Send a command and wait until output stabilizes or a known terminator
-    /// pattern appears. This helps capture long multi-line tables (e.g. autopwn)
-    /// that may finish with a table footer instead of a clear pause.
-    Future<String> sendCommandAndWait(String command,
+  /// Send a command and wait until output stabilizes or a known terminator
+  /// pattern appears. This helps capture long multi-line tables (e.g. autopwn)
+  /// that may finish with a table footer instead of a clear pause.
+  Future<String> sendCommandAndWait(String command,
       {Duration timeout = const Duration(seconds: 10),
       RegExp? terminator}) async {
     if (_process == null || _state != Pm3State.connected) {
@@ -387,34 +375,4 @@ class Pm3Process {
     _stateController.add(newState);
   }
 
-  /// 检查是否应该输出该行
-  /// 限制输出频率，避免 UI 卡顿
-  bool _shouldOutput(String line) {
-    _outputCount++;
-    final now = DateTime.now();
-
-    // 每 100 毫秒最多输出 50 行
-    if (_outputCount > 50 &&
-        now.difference(_lastOutputTime) < const Duration(milliseconds: 100)) {
-      return false;
-    }
-
-    // 重置计数器和时间戳
-    if (now.difference(_lastOutputTime) >= const Duration(milliseconds: 100)) {
-      _outputCount = 0;
-      _lastOutputTime = now;
-    }
-
-    // 总是输出重要信息
-    final lowerLine = line.toLowerCase();
-    if (lowerLine.contains('error') ||
-        lowerLine.contains('fail') ||
-        lowerLine.contains('success') ||
-        lowerLine.contains('os:') ||
-        lowerLine.contains('pm3 -->')) {
-      return true;
-    }
-
-    return true;
-  }
 }
