@@ -268,8 +268,12 @@ class Pm3Process {
 
   /// 发送命令并等待输出稳定
   /// [timeout] - 超时时间，默认为10秒
-  Future<String> sendCommandAndWait(String command,
-      {Duration timeout = const Duration(seconds: 10)}) async {
+    /// Send a command and wait until output stabilizes or a known terminator
+    /// pattern appears. This helps capture long multi-line tables (e.g. autopwn)
+    /// that may finish with a table footer instead of a clear pause.
+    Future<String> sendCommandAndWait(String command,
+      {Duration timeout = const Duration(seconds: 10),
+      RegExp? terminator}) async {
     if (_process == null || _state != Pm3State.connected) {
       return '[未连接]';
     }
@@ -278,14 +282,25 @@ class Pm3Process {
     _process!.stdin.writeln(command);
     await _process!.stdin.flush();
 
-    // 等待输出停止
+    // Wait until either output stabilizes or a terminator pattern is observed.
     var lastLength = 0;
     final deadline = DateTime.now().add(timeout);
+    // Default terminator: table footer or legend that many pm3 commands emit.
+    final defaultTerminator = RegExp(r'-----\+-----\+|\[=\]\s*\(');
+    final term = terminator ?? defaultTerminator;
+
     while (DateTime.now().isBefore(deadline)) {
       await Future.delayed(const Duration(milliseconds: 200));
-      final currentLength = _responseBuffer.length;
+      final current = _responseBuffer.toString();
+
+      // If we detect a terminator string in the accumulated output, stop waiting
+      if (term.hasMatch(current)) {
+        break;
+      }
+
+      final currentLength = current.length;
       if (currentLength > 0 && currentLength == lastLength) {
-        break; // 输出已稳定
+        break; // output appears stable
       }
       lastLength = currentLength;
     }

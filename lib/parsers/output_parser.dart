@@ -116,8 +116,10 @@ List<ExtractedKey> extractKeys(String output,
 
     final keyA = cells[keyAIndex].replaceAll('-', '').toUpperCase();
     final keyB = cells[keyBIndex].replaceAll('-', '').toUpperCase();
-    final keyAFound = cells[keyAIndex + 1].trim() == '1';
-    final keyBFound = cells[keyBIndex + 1].trim() == '1';
+    // The "res" column contains status letters (e.g. D, N, R, A, etc.).
+    // Consider a key "found" when the parsed hex is present (12 hex chars).
+    final keyAFound = keyA.length == 12;
+    final keyBFound = keyB.length == 12;
 
     results.add(ExtractedKey(
       sector: sector,
@@ -127,7 +129,50 @@ List<ExtractedKey> extractKeys(String output,
       keyBFound: keyBFound,
     ));
   }
+  if (results.isEmpty) {
+    // Fallback: parse lines like "Target sector ... found valid key [...]"
+    return extractKeysFromTargetLines(output);
+  }
   return results;
+}
+
+/// Parse lines like:
+/// "+] Target sector   2 key type A -- found valid key [ FFFFFFFFFFFF ]"
+List<ExtractedKey> extractKeysFromTargetLines(String output) {
+  final linePattern = RegExp(
+      r'Target sector\s+(\d+)\s+key type\s+([AB])\s+--\s+found valid key\s+\[\s*([0-9a-fA-F]{12})\s*\]',
+      caseSensitive: false,
+      multiLine: true);
+
+  final map = <int, ExtractedKey>{};
+  for (final m in linePattern.allMatches(output)) {
+    final sector = int.tryParse(m.group(1)!) ?? 0;
+    final type = m.group(2)!.toUpperCase();
+    final key = m.group(3)!.replaceAll('-', '').toUpperCase();
+
+    final existing = map[sector];
+    if (existing == null) {
+      if (type == 'A') {
+        map[sector] = ExtractedKey(
+            sector: sector, keyA: key, keyB: '', keyAFound: true, keyBFound: false);
+      } else {
+        map[sector] = ExtractedKey(
+            sector: sector, keyA: '', keyB: key, keyAFound: false, keyBFound: true);
+      }
+    } else {
+      // update existing
+      final keyA = existing.keyA.isNotEmpty ? existing.keyA : (type == 'A' ? key : existing.keyA);
+      final keyB = existing.keyB.isNotEmpty ? existing.keyB : (type == 'B' ? key : existing.keyB);
+      final keyAFound = existing.keyAFound || (type == 'A');
+      final keyBFound = existing.keyBFound || (type == 'B');
+      map[sector] = ExtractedKey(
+          sector: sector, keyA: keyA, keyB: keyB, keyAFound: keyAFound, keyBFound: keyBFound);
+    }
+  }
+
+  final list = map.values.toList();
+  list.sort((a, b) => a.sector.compareTo(b.sector));
+  return list;
 }
 
 /// Check if output indicates a failure.

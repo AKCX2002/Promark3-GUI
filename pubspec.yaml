@@ -1,7 +1,7 @@
 name: pm3gui
 description: "Proxmark3 跨平台图形界面 — 读写分析 RFID/NFC 卡片，点击即用"
 publish_to: 'none'
-version: 0.0.2-alpha
+version: 0.0.3
 
 environment:
   sdk: ^3.6.2
