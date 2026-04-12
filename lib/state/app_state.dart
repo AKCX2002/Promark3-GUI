@@ -153,6 +153,10 @@ class AppState extends ChangeNotifier {
     fileState = FileState();
     hardwareState = HardwareState();
 
+    // Propagate terminal state changes so widgets depending on AppState
+    // (via context.select on outputRevision / terminalOutput) will rebuild
+    // in real-time when TerminalState notifies.
+    terminalState.addListener(_onTerminalChanged);
     connectionState.pm3.outputStream.listen((line) {
       terminalState.addOutput(line);
 
@@ -172,6 +176,12 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     });
   }
+
+  void _onTerminalChanged() {
+    // Forward terminal state changes to AppState listeners.
+    notifyListeners();
+  }
+
 
   Future<bool> connect() async {
     hardwareState.resetHwInfo();
@@ -370,6 +380,9 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    try {
+      terminalState.removeListener(_onTerminalChanged);
+    } catch (_) {}
     connectionState.dispose();
     super.dispose();
   }
