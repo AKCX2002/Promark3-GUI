@@ -117,6 +117,15 @@ jobs:
 
       # ── Windows / Official ProxSpace toolchain ────────────────────────────
       # Follow official proxmark3 windows workflow and toolchain.
+      - name: Cache MSYS2 packages
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: C:\msys64\mingw64
+          key: ${{ runner.os }}-msys2-mingw64-${{ hashFiles('.github/workflows/sync-pm3.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-msys2-mingw64-
+
       - name: ProxSpace download (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
