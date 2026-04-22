@@ -137,8 +137,17 @@ class FileCollector {
     '.eml',
     '.dump',
     '.dic',
-    '.keys.txt',
   };
+
+  /// 判断文件名是否为当前扫描器支持的 dump/key 格式。
+  ///
+  /// 注意：`path.extension('a.keys.txt')` 返回 `.txt`，因此这里用
+  /// `endsWith('.keys.txt')` 单独覆盖多段扩展名场景。
+  static bool _isSupportedName(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.keys.txt')) return true;
+    return _supportedExtensions.contains(p.extension(lower));
+  }
 
   /// 扫描目录列表以查找PM3生成的文件
   ///
@@ -187,8 +196,7 @@ class FileCollector {
         final name = p.basename(file.path);
 
         // 快速过滤：只处理常见的文件扩展名
-        final ext = p.extension(name).toLowerCase();
-        if (!_supportedExtensions.contains(ext)) {
+        if (!_isSupportedName(name)) {
           continue;
         }
 

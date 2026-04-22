@@ -3,14 +3,8 @@ name: PM3 GUI Build
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   workflow_dispatch:
   # 定时校验“最新依赖”兼容性，防止长期不变导致 CI 老化
   schedule:

@@ -8,34 +8,41 @@
   <img src="https://img.shields.io/badge/Status-Alpha-red" alt="Status"/>
 </div>
 
-跨平台 Proxmark3 图形界面，面向 RFID/NFC 读写、分析与数据管理场景。
+PM3 GUI 是一个面向 Proxmark3 的跨平台图形化客户端，聚焦 RFID/NFC 读写、转储管理、分析与命令操作。
 
-> ⚠️ 当前为 Alpha 阶段，接口和行为可能在后续版本中调整。
+> ⚠️ **Alpha 说明**：当前版本仍在快速迭代，部分功能/行为可能在后续版本中调整。
 
 ---
 
-## Features
+## Why PM3 GUI
 
-- **跨平台 GUI**：Android / Linux / Windows 统一交互体验。
-- **CLI Wrapper 架构**：直接驱动原生 `pm3`/`proxmark3` 客户端，持续跟随上游命令能力。
-- **文件自动归集**：扫描并按卡片标识归档 dump/key 文件。
-- **离线数据能力**：支持 dump 查看、编辑、比较与格式转换。
-- **终端模式**：完整 PM3 命令透传，保留高级用户的 CLI 使用路径。
+- 为 PM3 CLI 提供更低门槛的可视化操作入口。
+- 保留高级用户的命令透传能力，而非替代 CLI。
+- 通过结构化文件管理和离线分析降低重复劳动。
 
-## Architecture
+## Core Features
+
+- **跨平台支持**：Android、Linux、Windows。
+- **CLI Wrapper 架构**：通过进程管道驱动 `pm3`/`proxmark3`，自动继承上游命令能力。
+- **终端模式**：支持完整命令输入、历史回溯与输出展示。
+- **Dump/Key 文件管理**：自动扫描、识别、分组与归档。
+- **数据处理能力**：支持 dump 查看、编辑、比较、转换与导出。
+
+## Architecture Overview
 
 ```text
-Flutter UI (Provider state)
-   ├─ Connection / Terminal / Data Pages
-   ├─ Parsers (.eml/.bin/.json/.dic)
-   └─ Services (Pm3Process, FileCollector, DumpConverter)
-            │
-            └─ stdin/stdout pipe
-                    │
-               proxmark3 CLI
+Flutter UI (pages + components)
+  ├─ State layer (Provider)
+  ├─ Parser layer (.eml/.bin/.json/.dic)
+  └─ Service layer
+       ├─ Pm3Process (stdin/stdout bridge)
+       ├─ FileCollector / FileCache
+       └─ DumpConverter / Command catalog
+                │
+                └─ proxmark3 CLI process
 ```
 
-## Getting Started
+## Installation & Quick Start
 
 ### Prerequisites
 
@@ -43,7 +50,7 @@ Flutter UI (Provider state)
 - Dart 3.6+
 - Proxmark3 CLI (`pm3` 或 `proxmark3`，推荐 RRG/Iceman 分支)
 
-### Run locally
+### Run
 
 ```bash
 git clone https://github.com/AKCX2002/pm3gui.git
@@ -52,7 +59,7 @@ flutter pub get
 flutter run -d linux
 ```
 
-### Build artifacts
+### Build
 
 ```bash
 flutter build linux
@@ -60,7 +67,7 @@ flutter build windows
 flutter build apk --split-per-abi
 ```
 
-## Supported Data Formats
+## Supported File Formats
 
 | Type | Extensions | Read | Export |
 |---|---|---:|---:|
@@ -70,23 +77,23 @@ flutter build apk --split-per-abi
 | Key dictionary | `.dic` | ✅ | ✅ |
 | Key text | `.keys.txt` | - | ✅ |
 
-## Project Layout
+## Repository Layout
 
 ```text
 lib/
 ├─ models/           # 数据模型
 ├─ parsers/          # dump/key 解析器
-├─ services/         # PM3 进程、文件与命令服务
+├─ services/         # PM3 进程、文件、命令与转换服务
 ├─ state/            # Provider 状态管理
 └─ ui/               # 页面与组件
 
-docs/                # 设计文档、命令映射与开发计划
+docs/                # 规格说明、开发任务、命令映射
 .github/workflows/   # CI/CD 工作流
 ```
 
-## Development Workflow
+## Engineering Workflow
 
-建议本地在提交前执行：
+建议在本地提交前执行：
 
 ```bash
 flutter pub get
@@ -94,20 +101,26 @@ flutter analyze
 flutter test
 ```
 
-仓库已提供以下 GitHub Actions：
+CI/CD（GitHub Actions）包含：
 
-- **build.yml**：主干与 PR 的多平台构建校验。
-- **release.yml**：标签发布时构建并上传 Release 资产。
-- **sync-pm3.yml**：同步并构建上游 Proxmark3 客户端与固件。
+- `build.yml`：主分支/PR 多平台构建与静态检查。
+- `release.yml`：标签触发构建并发布 Release 资产。
+- `sync-pm3.yml`：同步并构建上游 Proxmark3 客户端/固件。
 
 ## Contributing
 
-欢迎通过 Issue / Pull Request 参与贡献。
+欢迎提交 Issue 与 Pull Request。
 
 1. Fork 仓库并创建特性分支。
-2. 保持提交小而清晰，附带必要测试。
-3. 提交 PR，并说明变更背景、影响范围与验证方式。
+2. 变更尽量保持小步提交，并附带验证说明。
+3. PR 描述中注明：背景、修改内容、影响范围、测试结果。
+
+## Roadmap (Short-term)
+
+- 完善更多 PM3 子命令页面覆盖。
+- 增强 dump 差异分析与异常提示。
+- 提升 Windows/Android 设备连接稳定性。
 
 ## License
 
-本项目遵循 **GPL-3.0** 开源许可证。详见 [LICENSE](./LICENSE)。
+本项目使用 **GPL-3.0** 许可证，详见 [LICENSE](./LICENSE)。
